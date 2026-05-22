@@ -1,6 +1,25 @@
-
 const MIN_GIF_ID_INC=100
 const MAX_GIF_ID_INC=414
+
+hf={
+	
+	randIntInc(min,max){
+		min = Math.ceil(min)
+		max = Math.floor(max)
+		return Math.floor(Math.random() * (max - min + 1) + min)
+	},
+
+	hash(s){
+		
+		let h = 0;
+		for (let i = 0; i < s.length; i++) {
+			h = (h << 5) - h + s.charCodeAt(i)
+			h |= 0
+		}
+		return h
+	}	
+	
+}
 
 irnd = function(min,max) {
 	min = Math.ceil(min);
