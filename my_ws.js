@@ -140,6 +140,14 @@ my_ws={
 				if (this.get_resolvers[msg.req_id])
 					this.get_resolvers[msg.req_id](msg.data)
 
+			if (msg.event==='set')
+				if (this.get_resolvers[msg.req_id])
+					this.get_resolvers[msg.req_id](1)
+				
+			if (msg.event==='push')
+				if (this.get_resolvers[msg.req_id])
+					this.get_resolvers[msg.req_id](1)
+				
 			if (msg.event==='get_tms')
 				if (this.get_resolvers[msg.req_id])
 					this.get_resolvers[msg.req_id](msg.data)
@@ -201,7 +209,7 @@ my_ws={
 	},
 
 	/*
-		my_ws.make_req('set',{path:'players/debug100/rating',val:123})
+		my_ws.make_req('get',{path:'players/debug100'})
 		my_ws.make_req('set',{path:'players/debug100',val:{rating:100,name:'kamil',tm:'TMS'}})
 		my_ws.make_req('remove',{path:'bg'})
 		my_ws.make_req('remove_arr_elem',{path:'bg'})
