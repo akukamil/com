@@ -222,6 +222,10 @@ my_ws={
 
 		});
 	},
+
+	get(path, limit_last) {
+		return this.make_req('get', {path, limit_last})
+	},
 	
 	ref(path) {
 		return {
