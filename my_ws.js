@@ -21,12 +21,6 @@ hf={
 	
 }
 
-irnd = function(min,max) {
-	min = Math.ceil(min);
-	max = Math.floor(max);
-	return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 my_ws={
 
 	socket:0,
@@ -45,23 +39,28 @@ my_ws={
 	keep_alive_time:45000,
 	open_tm:0,
 	reconnect_num:0,
-	req_id:0,
+	req_id:1,
 
 	s_url:'',
 
-	init(){
+	init(local){		
+
+		if(local){
+			game_name='corners'
+			this.s_url=`ws://localhost:8443/corners/uid12432`
+		}
+		else
+			this.s_url=`wss://timewebmtgames.ru:443/${game_name}/`+my_data.uid
+		
 		if(!game_name){
 			alert('No game_name provided!')
 			return
 		}
-		this.s_url=`wss://timewebmtgames.ru:443/${game_name}/`+my_data.uid;
-		//fbs.ref('WSDEBUG/'+my_data.uid).remove();
-		//fbs.ref('WSDEBUG/'+my_data.uid).push({tm:Date.now(),event:'init'});
 
-		if(this.socket.readyState===1) return;
-		return new Promise(resolve=>{
-			this.connect_resolver=resolve;
-			this.reconnect('init');
+		if(this.socket.readyState===1) return
+		return new Promise(res=>{
+			this.connect_resolver=res
+			this.reconnect('init')
 		})
 	},
 
@@ -109,48 +108,30 @@ my_ws={
 			this.connect_resolver()
 			this.reconnect_time=0
 			this.open_tm=Date.now()
-			//fbs.ref('WSDEBUG/'+my_data.uid).push({tm:Date.now(),event:'onopen'});
 
 			//обновляем подписки
-			for (const path in this.child_added)
-				this.safe_send({cmd:'child_added',path})
+			for (const path in this.child_added) this.safe_send({cmd:'ca',path})
+			for (const path in this.child_changed) this.safe_send({cmd:'cc',path})
+			for (const path in this.child_removed) this.safe_send({cmd:'cr',path})
+			for (const path in this.value_changed) this.safe_send({cmd:'vc',path})
 
 			this.reset_keep_alive('onopen');
 		};
 
-		this.socket.onmessage = event => {
+		this.socket.onmessage = e => {
 
-			const msg=JSON.parse(event.data);
+			const msg=JSON.parse(e.data);
 			//console.log("Получено от сервера:", msg);
 
 			//вызов коллбэк функции для нода если она подписана
-			if (msg.event==='ca'||msg.event==='child_added')
-				this.child_added[msg.node]?.(msg)
-
-			if (msg.event==='cc')
-				this.child_changed[msg.node]?.(msg)
-			
-			if (msg.event==='cr')
-				this.child_removed[msg.node]?.(msg)
-
-			if (msg.event==='vc')
-				this.value_changed[msg.node]?.(msg)
-
-			if (msg.event==='get')
-				if (this.get_resolvers[msg.req_id])
-					this.get_resolvers[msg.req_id](msg.data)
-
-			if (msg.event==='set')
-				if (this.get_resolvers[msg.req_id])
-					this.get_resolvers[msg.req_id](1)
-				
-			if (msg.event==='push')
-				if (this.get_resolvers[msg.req_id])
-					this.get_resolvers[msg.req_id](1)
-				
-			if (msg.event==='get_tms')
-				if (this.get_resolvers[msg.req_id])
-					this.get_resolvers[msg.req_id](msg.data)
+			if (msg.event==='ca') this.child_added[msg.node]?.(msg)
+			if (msg.event==='cc') this.child_changed[msg.node]?.(msg)
+			if (msg.event==='cr') this.child_removed[msg.node]?.(msg)
+			if (msg.event==='vc') this.value_changed[msg.node]?.(msg)
+			if (msg.event==='get') this.get_resolvers[msg.req_id]?.(msg.data)
+			if (msg.event==='get_tms') this.get_resolvers[msg.req_id]?.(msg.data)
+			if (msg.event==='set') this.get_resolvers[msg.req_id]?.(1)
+			if (msg.event==='push') this.get_resolvers[msg.req_id]?.(1)
 
 		};
 
@@ -170,7 +151,7 @@ my_ws={
 				const open_tm_of_socket=tm-this.open_tm
 				if (open_tm_of_socket>180000) this.reconnect_num=0
 
-				this.reconnect_time=irnd(5000,15000);
+				this.reconnect_time=hf.randIntInc(5000,15000);
 				if (this.reconnect_num>12) this.reconnect_time+=50000
 				if (open_tm_of_socket<this.keep_alive_time)
 					this.keep_alive_time=Math.max(10000,this.keep_alive_time-5000)
@@ -208,41 +189,89 @@ my_ws={
 
 	},
 
-	/*
-		my_ws.make_req('get',{path:'players/debug100'})
-		my_ws.make_req('set',{path:'players/debug100',val:{rating:100,name:'kamil',tm:'TMS'}})
-		my_ws.make_req('remove',{path:'bg'})
-		my_ws.make_req('remove_arr_elem',{path:'bg'})
-		my_ws.make_req('push',{path:'chat',val:{uid:'admin',name:'Админ',msg,tm:'TMS'}})
-		
-	*/
 	make_req(cmd, params = {}) {
-				
+		/*
+			my_ws.make_req('get',{path:'players/debug100'})
+			my_ws.make_req('set',{path:'players/debug100',val:{rating:100,name:'kamil',tm:'TMS'}})
+			my_ws.make_req('remove',{path:'bg'})
+			my_ws.make_req('remove_arr_elem',{path:'fb/debug100/2'})
+			my_ws.make_req('push',{path:'chat',val:{uid:'admin',name:'Админ',msg,tm:'TMS'}})
+			
+		*/
 		return new Promise(res => {
 			
-			if (this.sleep) res(0)
+			if (this.sleep) res(null)
 			
 			this.req_id++
+			
+			const req_id=this.req_id
 
-			const timeoutId = setTimeout(() => {
-				delete this.get_resolvers[this.req_id]
-				res(0);
+			const timeout = setTimeout(() => {
+				delete this.get_resolvers[req_id]
+				console.warn('Timeout on request: ',req_id)
+				res(null);
 			}, 5000);
 
-			this.get_resolvers[this.req_id] = (data) => {
-				clearTimeout(timeoutId)
+			this.get_resolvers[req_id] = (data) => {
+				delete this.get_resolvers[req_id]
+				clearTimeout(timeout)
 				res(data)
 			};
 
-			this.safe_send({cmd,req_id:this.req_id,...params})
+			this.safe_send({cmd,req_id,...params})
 
-			//this.reset_keep_alive('req')
 		});
 	},
+	
+	ref(path) {
+		return {
+			set: (val) => this.safe_send({cmd: 'set', path, val}),
+			set_with_promise: (val) => this.make_req('set', {path, val}),
+			get: (limit_last = 20) => this.make_req('get', {path, limit_last}),
+			push: (val) => this.safe_send({cmd: 'push', path, val}),
+			remove: () => this.safe_send({cmd: 'remove', path}),
+			ss_child_added:(callback)=>{
+				this.safe_send({cmd:'ca',path})
+				this.child_added[path]=callback
+			},
 
-	//limit_last - это только для массивов
-	get(path, limit_last) {
-		return this.make_req('get', {path, limit_last})
+			ss_child_changed:(callback)=>{
+				this.safe_send({cmd:'cc',path})
+				this.child_changed[path]=callback
+			},
+
+			ss_value_changed:(callback)=>{
+				this.safe_send({cmd:'vc',path})
+				this.value_changed[path]=callback
+			},
+
+			ss_child_removed:(callback)=>{
+				this.safe_send({cmd:'cr',path})
+				this.child_removed[path]=callback
+			},
+
+			value_changed_off:()=>{
+				delete this.value_changed[path]
+				this.safe_send({cmd:'vc_off',path})
+			},
+
+			child_added_off:()=>{
+				delete this.child_added[path]
+				this.safe_send({cmd:'ca_off',path})
+			},
+
+			child_changed_off:()=>{
+				delete this.child_changed[path]
+				this.safe_send({cmd:'cc_off',path})
+			},
+
+			child_removed_off:()=>{
+				delete this.child_removed[path]
+				this.safe_send({cmd:'cr_off',path})
+			}
+			
+			
+		};
 	},
 
 	get_tms() {
@@ -270,18 +299,22 @@ my_ws={
 	},
 
 	value_changed_off(path){
+		delete this.value_changed[path]
 		this.safe_send({cmd:'vc_off',path})
 	},
 
 	child_added_off(path){
+		delete this.child_added[path]
 		this.safe_send({cmd:'ca_off',path})
 	},
 
 	child_changed_off(path){
+		delete this.child_changed[path]
 		this.safe_send({cmd:'cc_off',path})
 	},
 
 	child_removed_off(path){
+		delete this.child_removed[path]
 		this.safe_send({cmd:'cr_off',path})
 	},
 }
