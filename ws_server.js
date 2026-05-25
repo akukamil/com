@@ -1,7 +1,20 @@
-const uWS = require('uWebSockets.js')
-const fs = require('fs')
+const WebSocket = require('ws');
+const fs = require('fs');
+const https = require('https');
 
-const tms=()=>{return new Date().toLocaleString('ru-RU').replace(/[:,. ]/g, '-')}
+//SSL сертификат
+const serverConfig= (() => {
+	try {
+		return {
+			cert: fs.readFileSync('/etc/letsencrypt/live/timewebmtgames.ru/fullchain.pem'),
+			key: fs.readFileSync('/etc/letsencrypt/live/timewebmtgames.ru/privkey.pem')
+		};
+	} catch {
+		console.error('SSL cert files not found');
+	}
+})();
+
+const tms=()=>{return new Date().toLocaleString('ru-RU').replace(/[:,. ]/g, '-')};
 
 class batch_logger_class{
 
@@ -106,14 +119,10 @@ loggers.sys=new batch_logger_class('sys');
 loggers.slots=new batch_logger_class('slots');
 
 function str_to_obj(str) {
-	
-	if (typeof str !== 'string') return str
-
 	try {
 		return JSON.parse(str);
 	} catch (e) {
-		console.warn('JSON parse failed:', e.message);
-		return null
+		return str;
 	}
 }
 
@@ -168,6 +177,17 @@ class g_class{
 
 		} catch (error) {
 			loggers.sys.log('error saving db:', error)
+		}
+	}
+
+	check_dead_clients(){
+
+		for (let i=this.clients.length-1;i>=0;i--) {
+			const c = this.clients[i]
+			if (c.readyState === WebSocket.CLOSED) {
+				loggers.sys.log('removing_closed: ',this.game,c.uid)
+				this.clients.splice(i, 1)
+			}
 		}
 	}
 
@@ -521,13 +541,6 @@ class g_class{
 	}
 
 	remove_client(client){
-		
-		// Clear all subscriptions
-		client.child_added_ss = null
-		client.child_removed_ss = null
-		client.child_changed_ss = null
-		client.value_changed_ss = null
-		
 		for (let i=0;i<this.clients.length;i++){
 			if (this.clients[i]===client){
 				this.clients.splice(i, 1);
@@ -538,150 +551,169 @@ class g_class{
 
 	try_add_client(client){
 
-		const tm=Date.now();
+		const tm1=Date.now();
 
 		//ищем дубликаты
 		this.clients.forEach(c => {
 			if (c.uid === client.uid&&c.last_alive) {
-				loggers.sys.log('dub_found: ',this.game,c.uid,tm-c.last_alive);
-				c.end(1000, "dub");
+				loggers.sys.log('dub_found: ',this.game,c.uid,tm1-c.last_alive);
+				c.terminate();
 			}
 		});
 
 		this.clients.push(client);
 
-		client.last_alive=tm
-		client.child_added_ss={}
-		client.child_removed_ss={}
-		client.child_changed_ss={}
-		client.value_changed_ss={}
+		client.last_alive=tm1;
 
-	}
-	
-	on_message(client,data){
-		
-		const tm=Date.now();
+		client.child_added_ss={};
+		client.child_removed_ss={};
+		client.child_changed_ss={};
+		client.value_changed_ss={};
 
-		//для поддержки соединения
-		client.last_alive=tm
+		//сообщения от клиентов
+		client.on('message', data => {
 
-		const msg_str=data.toString()
-		const msg=JSON.parse(msg_str, (k, v) => {
-			return v === 'TMS' ? tm : v
+			const tm=Date.now();
+
+			//для поддержки соединения
+			client.last_alive=tm
+
+			const msg_str=data.toString()
+			const msg=JSON.parse(msg_str, (k, v) => {
+				return v === 'TMS' ? tm : v
+			});
+
+			//batch.log(ws.game,ws.uid,msg);
+
+			if (msg.cmd==='new_logger'){
+				loggers[msg.game]=new batch_logger_class(msg.game);
+				console.log('new logger created',msg.game);
+			}
+
+			if (msg.cmd==='log'){
+				if (!loggers[msg.logger])
+					loggers[msg.logger]=new batch_logger_class(msg.logger);
+				loggers[msg.logger].log(msg.data);
+			}
+
+			if (msg.cmd==='log_inst'){
+				if (!loggers[msg.logger])
+					loggers[msg.logger]=new batch_logger_class(msg.logger);
+				loggers[msg.logger].log_inst(msg.data);
+			}
+
+			if (msg.cmd==='set'){
+				//batch.log('set command received...');
+				this.set(msg.path,msg.val)
+				
+				//отправляем подтверждение
+				if(msg.req_id)
+					client.send(JSON.stringify({event:'set',req_id:msg.req_id}))
+			}
+
+			if (msg.cmd==='set_no_event'){
+				//console.log('set_no_event command received...');
+				this.set_no_event(msg.path,msg.val);
+			}
+
+			if (msg.cmd==='top3'){
+				loggers.sys.log('top3_command: ',msg.path,msg.val);
+				this.top3(msg.path,msg.val);
+			}
+
+			if (msg.cmd==='push'){
+				if (msg.path==='chat')
+					loggers.chat.log(this.game,msg.val)
+				this.push(msg.path,msg.val)
+			}
+
+			if (msg.cmd==='remove'){
+				//batch.log('remove command received...');
+				this.remove(msg.path);
+			}
+			
+			if (msg.cmd==='remove_arr_elem'){
+				//batch.log('remove command received...');
+				this.remove_arr_elem(msg.path);
+			}
+
+			if (msg.cmd==='get'){
+				client.send(JSON.stringify({event:'get',data:this.get_nested_value(msg.path,msg.limit_last),req_id:msg.req_id}));
+			}
+
+			if (msg.cmd==='get_tms'){
+				const data=Date.now();
+				client.send(JSON.stringify({event:'get_tms',data,req_id:msg.req_id}));
+			}
+
+			if (msg.cmd==='vc'){
+				client.value_changed_ss[msg.path]=1;
+				//batch.log(msg.path,'value changed subscribed!');
+			}
+
+			if (msg.cmd==='ca'){
+				client.child_added_ss[msg.path]=1;
+				//batch.log(msg.path,'child added subscribed!');
+			}
+
+			if (msg.cmd==='cc'){
+				client.child_changed_ss[msg.path]=1;
+				//batch.log(msg.path,'child changed subscribed!');
+			}
+
+			if (msg.cmd==='cr'){
+				client.child_removed_ss[msg.path]=1;
+				//batch.log(msg.path,'child removed subscribed!');
+			}
+
+			if (msg.cmd==='vc_off'){
+				client.value_changed_ss[msg.path]=0;
+				//batch.log(msg.path,'value change unsubscribed!');
+			}
+
+			if (msg.cmd==='ca_off'){
+				client.child_added_ss[msg.path]=0;
+				//batch.log(msg.path,'child added unsubscribed!');
+			}
+
+			if (msg.cmd==='cc_off'){
+				client.child_changed_ss[msg.path]=0;
+				//batch.log(msg.path,'child changed unsubscribed!');
+			}
+
+			if (msg.cmd==='cr_off'){
+				client.child_removed_ss[msg.path]=0;
+				//batch.log(msg.path,'child removed unsubscribed!');
+			}
+
 		});
 
-		//batch.log(ws.game,ws.uid,msg);
+		// Handle client disconnection
+		client.on('close', () => {
+			loggers.sys.log('close_con: ',this.game,client.uid);
 
-		if (msg.cmd==='new_logger'){
-			loggers[msg.game]=new batch_logger_class(msg.game);
-			console.log('new logger created',msg.game);
-		}
+			// Clear all subscriptions
+			client.child_added_ss = null;
+			client.child_removed_ss = null;
+			client.child_changed_ss = null;
+			client.value_changed_ss = null;
 
-		if (msg.cmd==='log'){
-			if (!loggers[msg.logger])
-				loggers[msg.logger]=new batch_logger_class(msg.logger);
-			loggers[msg.logger].log(msg.data);
-		}
+			// Remove all listeners
+			client.removeAllListeners('message');
+			client.removeAllListeners('error');
+			client.removeAllListeners('close');
 
-		if (msg.cmd==='log_inst'){
-			if (!loggers[msg.logger])
-				loggers[msg.logger]=new batch_logger_class(msg.logger);
-			loggers[msg.logger].log_inst(msg.data);
-		}
+			this.remove_client(client);
 
-		if (msg.cmd==='set'){
-			//batch.log('set command received...');
-			this.set(msg.path,msg.val)
-			
-			//отправляем подтверждение
-			if(msg.req_id)
-				client.send(JSON.stringify({event:'set',req_id:msg.req_id}))
-		}
+		});
 
-		if (msg.cmd==='set_no_event'){
-			//console.log('set_no_event command received...');
-			this.set_no_event(msg.path,msg.val);
-		}
+		// Handle errors
+		client.on('error', (error) => {
+			loggers.sys.log(this.game,client.uid,'ws_error:', error);
+		});
 
-		if (msg.cmd==='top3'){
-			loggers.sys.log('top3_command: ',msg.path,msg.val);
-			this.top3(msg.path,msg.val);
-		}
-
-		if (msg.cmd==='push'){
-			if (msg.path==='chat')
-				loggers.chat.log(this.game,msg.val)
-			this.push(msg.path,msg.val)
-		}
-
-		if (msg.cmd==='remove'){
-			//batch.log('remove command received...');
-			this.remove(msg.path);
-		}
-		
-		if (msg.cmd==='remove_arr_elem'){
-			//batch.log('remove command received...');
-			this.remove_arr_elem(msg.path);
-		}
-
-		if (msg.cmd==='get'){
-			client.send(JSON.stringify({event:'get',data:this.get_nested_value(msg.path,msg.limit_last),req_id:msg.req_id}));
-		}
-
-		if (msg.cmd==='get_tms'){
-			const data=Date.now();
-			client.send(JSON.stringify({event:'get_tms',data,req_id:msg.req_id}));
-		}
-
-		if (msg.cmd==='vc'){
-			client.value_changed_ss[msg.path]=1;
-			//batch.log(msg.path,'value changed subscribed!');
-		}
-
-		if (msg.cmd==='ca'){
-			client.child_added_ss[msg.path]=1;
-			//batch.log(msg.path,'child added subscribed!');
-		}
-
-		if (msg.cmd==='cc'){
-			client.child_changed_ss[msg.path]=1;
-			//batch.log(msg.path,'child changed subscribed!');
-		}
-
-		if (msg.cmd==='cr'){
-			client.child_removed_ss[msg.path]=1;
-			//batch.log(msg.path,'child removed subscribed!');
-		}
-
-		if (msg.cmd==='vc_off'){
-			client.value_changed_ss[msg.path]=0;
-			//batch.log(msg.path,'value change unsubscribed!');
-		}
-
-		if (msg.cmd==='ca_off'){
-			client.child_added_ss[msg.path]=0;
-			//batch.log(msg.path,'child added unsubscribed!');
-		}
-
-		if (msg.cmd==='cc_off'){
-			client.child_changed_ss[msg.path]=0;
-			//batch.log(msg.path,'child changed unsubscribed!');
-		}
-
-		if (msg.cmd==='cr_off'){
-			client.child_removed_ss[msg.path]=0;
-			//batch.log(msg.path,'child removed unsubscribed!');
-		}
-
-		
 	}
 
-	on_close(client,code,msg){
-		
-		loggers.sys.log('close_con: ',this.game,client.uid);
-		this.remove_client(client)
-		
-	}
 }
 
 //загружаем базы данные с диска
@@ -699,6 +731,12 @@ fs.readdir('./dbs', (err, files) => {
 	});
 });
  
+// создаем HTTP сервер
+const server = https.createServer(serverConfig);
+ 
+//создаем WSS сервер
+wss = new WebSocket.Server({server});
+
 //периодически сохраняем и обновляем данные
 setInterval(async () => {
 	try {
@@ -711,184 +749,38 @@ setInterval(async () => {
 	}
 }, 360000);
 
-msg_handler={
-		
-	process_msg(client, data){
-		
-		const tm=Date.now()
-		const msg=JSON.parse(data, (k, v) => {return v === 'TMS' ? tm : v})
-		
-		const game_db=g[client.game]
-		
-		if (msg.cmd==='new_logger'){
-			loggers[msg.game]=new batch_logger_class(msg.game);
-			console.log('new logger created',msg.game);
-		}
+//новые сообщения
+wss.on('connection', (ws,req) => {
+	loggers.sys.log('new_conn: ',req.url,req.socket.remoteAddress);
 
-		if (msg.cmd==='log'){
-			if (!loggers[msg.logger])
-				loggers[msg.logger]=new batch_logger_class(msg.logger);
-			loggers[msg.logger].log(msg.data);
-		}
-
-		if (msg.cmd==='log_inst'){
-			if (!loggers[msg.logger])
-				loggers[msg.logger]=new batch_logger_class(msg.logger);
-			loggers[msg.logger].log_inst(msg.data);
-		}
-
-		if (msg.cmd==='set'){
-			//batch.log('set command received...');
-			game_db.set(msg.path,msg.val)
-			
-			//отправляем подтверждение
-			if(msg.req_id)
-				client.send(JSON.stringify({event:'set',req_id:msg.req_id}))
-		}
-
-		if (msg.cmd==='set_no_event'){
-			//console.log('set_no_event command received...');
-			game_db.set_no_event(msg.path,msg.val);
-		}
-
-		if (msg.cmd==='top3'){
-			loggers.sys.log('top3_command: ',msg.path,msg.val);
-			game_db.top3(msg.path,msg.val);
-		}
-
-		if (msg.cmd==='push'){
-			if (msg.path==='chat')
-				loggers.chat.log(client.game,msg.val)
-			game_db.push(msg.path,msg.val)
-		}
-
-		if (msg.cmd==='remove'){
-			//batch.log('remove command received...');
-			game_db.remove(msg.path);
-		}
-		
-		if (msg.cmd==='remove_arr_elem'){
-			//batch.log('remove command received...');
-			game_db.remove_arr_elem(msg.path);
-		}
-
-		if (msg.cmd==='get'){
-			client.send(JSON.stringify({event:'get',data:game_db.get_nested_value(msg.path,msg.limit_last),req_id:msg.req_id}))
-		}
-
-		if (msg.cmd==='get_tms'){
-			const data=Date.now()
-			client.send(JSON.stringify({event:'get_tms',data,req_id:msg.req_id}))
-		}
-
-		if (msg.cmd==='vc'){
-			client.value_changed_ss[msg.path]=1
-			//batch.log(msg.path,'value changed subscribed!');
-		}
-
-		if (msg.cmd==='ca'){
-			client.child_added_ss[msg.path]=1
-			//batch.log(msg.path,'child added subscribed!');
-		}
-
-		if (msg.cmd==='cc'){
-			client.child_changed_ss[msg.path]=1
-			//batch.log(msg.path,'child changed subscribed!');
-		}
-
-		if (msg.cmd==='cr'){
-			client.child_removed_ss[msg.path]=1
-			//batch.log(msg.path,'child removed subscribed!');
-		}
-
-		if (msg.cmd==='vc_off'){
-			client.value_changed_ss[msg.path]=0
-			//batch.log(msg.path,'value change unsubscribed!');
-		}
-
-		if (msg.cmd==='ca_off'){
-			client.child_added_ss[msg.path]=0
-			//batch.log(msg.path,'child added unsubscribed!');
-		}
-
-		if (msg.cmd==='cc_off'){
-			client.child_changed_ss[msg.path]=0
-			//batch.log(msg.path,'child changed unsubscribed!');
-		}
-
-		if (msg.cmd==='cr_off'){
-			client.child_removed_ss[msg.path]=0
-			//batch.log(msg.path,'child removed unsubscribed!');
-		}
+	const user_data=req.url.split('/')
+	let game='';
+	ws.uid='no';
+	if (user_data.length===3){
+		game=user_data[1];
+		const uid=user_data[2];
+		ws.uid=uid;
 	}
+
+	if(user_data.length<3){
+		ws.close(4000, 'no_uid');
+		return;
+	}
+
+	//отправляем в соответствующую базу для дальнейшей обработки
+	if (!g[game])
+		new g_class(game);
 	
-}
+	g[game].try_add_client(ws)
 
-const app = uWS.SSLApp({
-	key_file_name: '/etc/letsencrypt/live/timewebmtgames.ru/privkey.pem',
-	cert_file_name: '/etc/letsencrypt/live/timewebmtgames.ru/fullchain.pem'
-}).ws('/*', {
+});
 
-	upgrade:(res, req, context) => {
+// Server-level error handling
+wss.on('error', (error) => {
+	console.log(tms(),'ws_server_error:', error);
+});
 
-		const fullPath = req.getUrl();
-
-		const pathSegments = fullPath.split('/')
-		const game = pathSegments[1]
-		const uid = pathSegments[2]
-		const ip = Buffer.from(res.getRemoteAddressAsText()).toString()
-		res.upgrade(
-			{game,uid,ip},
-			req.getHeader('sec-websocket-key'),
-			req.getHeader('sec-websocket-protocol'),
-			req.getHeader('sec-websocket-extensions'),
-			context
-		);
-	},
-
-	open:(ws) => {
-		
-		if(!ws.game){
-			//console.warn('rejected client with no game')
-			return
-		}
-		
-		if(!ws.uid){
-			//console.warn('rejected client with no uid')
-			return
-		}
-		
-		loggers.sys.log('new_conn: ',ws.game,ws.uid,ws.ip);
-
-		const game=ws.game
-		
-		//отправляем в соответствующую базу для дальнейшей обработки
-		if (!g[game]) new g_class(game)
-		
-		const game_db=g[game]
-		game_db.try_add_client(ws)
-
-	},
-
-	message:(ws, msg, isBinary) => {
-		const msg_str = isBinary ? msg : Buffer.from(msg).toString()
-		const game=ws.game
-		const game_db=g[game]
-		game_db.on_message(ws,msg_str)
-	},
-
-	close:(ws,code,msg) => {
-
-		const game=ws.game
-		const game_db=g[game]
-		game_db.on_close(ws,code,msg)
-		
-	}
-	
-}).listen(8443, (token) => {
-	if (token) {
-		console.log('Server is listening on port 8443');
-	} else {
-		console.log('Failed to start server');
-	}
+const PORT=8443;
+server.listen(PORT,'0.0.0.0',()=>{
+	loggers.sys.log_inst(tms(),'сервер запущен!');
 });
