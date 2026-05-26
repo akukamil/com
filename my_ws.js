@@ -40,6 +40,8 @@ my_ws={
 	open_tm:0,
 	reconnect_num:0,
 	req_id:1,
+	close_callback:()=>{},
+	connect_callback:()=>{},
 
 	s_url:'',
 
@@ -104,7 +106,8 @@ my_ws={
 		this.socket = new WebSocket(this.s_url)
 
 		this.socket.onopen = () => {
-			console.log('connected to server!')
+			console.log('Connected to my_ws!')
+			
 			this.connect_resolver()
 			this.reconnect_time=0
 			this.open_tm=Date.now()
@@ -116,6 +119,7 @@ my_ws={
 			for (const path in this.value_changed) this.safe_send({cmd:'vc',path})
 
 			this.reset_keep_alive('onopen');
+			this.connect_callback(reason)
 		};
 
 		this.socket.onmessage = e => {
@@ -138,14 +142,13 @@ my_ws={
 		this.socket.onclose = event => {
 
 			clearTimeout(this.keep_alive_timer)
-
-			//fbs.ref('WSDEBUG/'+my_data.uid).push({tm:Date.now(),event:'close',code:event.code,reason:event.reason,type:event.type||'no_type'});
-
+			
+			
+			
 			//не восстанавливаем соединения если закрыто по команде
 			if (['not_alive','no_uid','kill','sleep'].includes(event.reason)) return;
 
 			if (this.open_tm){
-
 				//если продержались онлайн достаточно долго то сбрасываем счетчик
 				const tm=Date.now()
 				const open_tm_of_socket=tm-this.open_tm
@@ -163,11 +166,12 @@ my_ws={
 
 			console.log(`reconnecting in ${this.reconnect_time*0.001} seconds:`, event)
 			setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
-		};
+			this.close_callback()
+		}
 
 		this.socket.onerror = error => {
-			////fbs.ref('WSERRORS/'+my_data.uid).push({tm:Date.now(),event:'error'});
-		};
+
+		}
 
 	},
 
