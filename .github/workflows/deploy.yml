@@ -3,6 +3,7 @@ name: Deploy Files to VM
 on:
   push:
     branches: [ main ] # Or your desired branch
+    
 jobs:
   deploy:
     runs-on: ubuntu-latest
