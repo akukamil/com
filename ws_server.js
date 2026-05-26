@@ -180,17 +180,6 @@ class g_class{
 		}
 	}
 
-	check_dead_clients(){
-
-		for (let i=this.clients.length-1;i>=0;i--) {
-			const c = this.clients[i]
-			if (c.readyState === WebSocket.CLOSED) {
-				loggers.sys.log('removing_closed: ',this.game,c.uid)
-				this.clients.splice(i, 1)
-			}
-		}
-	}
-
 	get_nested_value(path,limit_last){
 
 		if (path==='')
@@ -447,6 +436,57 @@ class g_class{
 
 	}
 
+	clear_by_tm(path,timeout=100_000_000,notify=0){
+
+		//удаляем по значению tm
+		const data_to_clean=this.get_nested_value(path)
+		if (data_to_clean === null || typeof data_to_clean !== 'object') return
+		
+		const tm=Date.now()
+		
+		for (const key of Object.keys(data_to_clean)){
+			
+			const data=data_to_clean[key]
+			if (data&&data.tm){
+				if (tm-data.tm>timeout)
+					this.remove(path+'/'+key,notify)
+			}
+		}
+	}
+
+	top_by_key(path,tar_key='rating',limit=20){
+
+		const data = this.get_nested_value(path)
+
+		if (!data || typeof data !== 'object') return null
+		
+		const top = [];
+
+		for (const key in data) {
+			const item = data[key];
+
+			if (!item || typeof item !== 'object') continue;
+
+			const value = item[tar_key];
+
+			if (typeof value !== 'number') continue
+
+			if (top.length < limit) {
+				top.push({ key, [tar_key]: value });
+				top.sort((a, b) => a[tar_key] - b[tar_key]);
+				continue;
+			}
+
+			if (value > top[0][tar_key]) {
+				top[0] = { key, [tar_key]: value };
+				top.sort((a, b) => a[tar_key] - b[tar_key]);
+			}
+		}
+
+		return top.reverse()
+		
+	}
+
 	remove(path_url){
 
 		const path=path_url.split('/')
@@ -619,6 +659,15 @@ class g_class{
 			if (msg.cmd==='top3'){
 				loggers.sys.log('top3_command: ',msg.path,msg.val);
 				this.top3(msg.path,msg.val);
+			}
+
+			if (msg.cmd==='clear_by_tm'){
+				this.clear_by_tm(msg.path,msg.timeout,msg.notify);
+			}
+
+			if (msg.cmd==='top_by_key'){
+				const data=this.top_by_key(msg.path,msg.key,msg.limit);
+				client.send(JSON.stringify({event:'top_by_key',data,req_id:msg.req_id}));
 			}
 
 			if (msg.cmd==='push'){
