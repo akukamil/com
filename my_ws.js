@@ -134,6 +134,7 @@ my_ws={
 			if (msg.event==='vc') this.value_changed[msg.node]?.(msg)
 			if (msg.event==='get') this.get_resolvers[msg.req_id]?.(msg.data)
 			if (msg.event==='get_tms') this.get_resolvers[msg.req_id]?.(msg.data)
+			if (msg.event==='top_by_key') this.get_resolvers[msg.req_id]?.(msg.data)
 			if (msg.event==='set') this.get_resolvers[msg.req_id]?.(1)
 			if (msg.event==='push') this.get_resolvers[msg.req_id]?.(1)
 
