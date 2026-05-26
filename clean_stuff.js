@@ -398,7 +398,7 @@ tools={
 			{game:'domino',rooms:['states1','states2','states3','states4','states5','states6','states7','states8','states9']},
 			{game:'durak',rooms:['states1','states2','states3','states4','states5','statesNIGHT']},
 			{game:'chess',rooms:['states1','states2','states3','states4','statesNIGHT']},
-			{game:'pool',rooms:['states1']},
+			//{game:'pool',rooms:['states1']},
 			{game:'poker',rooms:[]},
 			{game:'balda',rooms:['statesNIGHT']},
 			{game:'word_game',rooms:[]},
