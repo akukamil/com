@@ -143,8 +143,6 @@ my_ws={
 
 			clearTimeout(this.keep_alive_timer)
 			
-			
-			
 			//не восстанавливаем соединения если закрыто по команде
 			if (['not_alive','no_uid','kill','sleep'].includes(event.reason)) return;
 
@@ -170,6 +168,8 @@ my_ws={
 		}
 
 		this.socket.onerror = error => {
+			
+			console.warn('connection error',error)
 
 		}
 
