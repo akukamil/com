@@ -32,13 +32,11 @@ my_ws={
 
 	get_resolvers:{},
 	get_req_id:0,
-	reconnect_time:5000,
+	reconnect_time:0,
 	connect_resolver:0,
 	sleep:0,
 	keep_alive_timer:0,
 	keep_alive_time:45000,
-	open_tm:0,
-	reconnect_num:0,
 	req_id:1,
 	close_callback:()=>{},
 	connect_callback:()=>{},
@@ -91,8 +89,6 @@ my_ws={
 
 	reconnect(reason){
 
-		//fbs.ref('WSDEBUG/'+my_data.uid).push({tm:Date.now(),event:'reconnect',reason:reason||'noreason'});
-
 		if (this.socket) {
 			this.socket.onopen = null
 			this.socket.onmessage = null
@@ -101,7 +97,7 @@ my_ws={
 			this.socket.close()
 		}
 
-		this.open_tm=0
+		//this.open_tm=0
 		this.sleep=0
 		this.socket = new WebSocket(this.s_url)
 
@@ -110,7 +106,7 @@ my_ws={
 			
 			this.connect_resolver()
 			this.reconnect_time=0
-			this.open_tm=Date.now()
+			//this.open_tm=Date.now()
 
 			//обновляем подписки
 			for (const path in this.child_added) this.safe_send({cmd:'ca',path})
@@ -146,23 +142,10 @@ my_ws={
 			
 			//не восстанавливаем соединения если закрыто по команде
 			if (['not_alive','no_uid','kill','sleep'].includes(event.reason)) return;
-
-			if (this.open_tm){
-				//если продержались онлайн достаточно долго то сбрасываем счетчик
-				const tm=Date.now()
-				const open_tm_of_socket=tm-this.open_tm
-				if (open_tm_of_socket>180000) this.reconnect_num=0
-
-				this.reconnect_time=hf.randIntInc(5000,15000);
-				if (this.reconnect_num>12) this.reconnect_time+=50000
-				if (open_tm_of_socket<this.keep_alive_time)
-					this.keep_alive_time=Math.max(10000,this.keep_alive_time-5000)
-			}else{
-				this.reconnect_time=Math.min(60000,Math.floor(this.reconnect_time*1.5))
-			}
-
-			this.reconnect_num++;
-
+	
+			if (this.reconnect_time<60_000)
+				this.reconnect_time=this.reconnect_time+hf.randIntInc(1000,4000)
+			
 			console.log(`reconnecting in ${this.reconnect_time*0.001} seconds:`, event)
 			setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
 			this.close_callback()
@@ -235,6 +218,7 @@ my_ws={
 	ref(path) {
 		return {
 			set: (val) => this.safe_send({cmd: 'set', path, val}),
+			set_no_event: (val) => this.safe_send({cmd: 'set_no_event', path, val}),
 			set_with_promise: (val) => this.make_req('set', {path, val}),
 			get: (limit_last = 20) => this.make_req('get', {path, limit_last}),
 			push: (val) => this.safe_send({cmd: 'push', path, val}),
