@@ -148,7 +148,6 @@ my_ws={
 				this.reconnect_time=this.reconnect_time+hf.randIntInc(1000,4000)
 			
 			console.log(`reconnecting in ${this.reconnect_time*0.001} seconds:`, event)
-			setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
 						
 			clearTimeout(this.reconnect_timer)
 			this.reconnect_timer=setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
