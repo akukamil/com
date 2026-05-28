@@ -193,7 +193,10 @@ my_ws={
 		*/
 		return new Promise(res => {
 			
-			if (this.sleep) res(null)
+			if (this.sleep) {
+				res(null)
+				return
+			}
 			
 			this.req_id++
 			
