@@ -34,7 +34,7 @@ my_ws={
 	get_req_id:0,
 	reconnect_time:0,
 	reconnect_timer:0,
-	connect_resolver:0,
+	connect_resolver:null,
 	sleep:0,
 	keep_alive_timer:0,
 	keep_alive_time:45000,
@@ -106,6 +106,7 @@ my_ws={
 			console.log('Connected to my_ws!')
 			
 			this.connect_resolver?.()
+			this.connect_resolver=null
 			this.reconnect_time=0
 			//this.open_tm=Date.now()
 
