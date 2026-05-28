@@ -33,6 +33,7 @@ my_ws={
 	get_resolvers:{},
 	get_req_id:0,
 	reconnect_time:0,
+	reconnect_timer:0,
 	connect_resolver:0,
 	sleep:0,
 	keep_alive_timer:0,
@@ -104,7 +105,7 @@ my_ws={
 		this.socket.onopen = () => {
 			console.log('Connected to my_ws!')
 			
-			this.connect_resolver()
+			this.connect_resolver?.()
 			this.reconnect_time=0
 			//this.open_tm=Date.now()
 
@@ -148,6 +149,10 @@ my_ws={
 			
 			console.log(`reconnecting in ${this.reconnect_time*0.001} seconds:`, event)
 			setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
+						
+			clearTimeout(this.reconnect_timer)
+			this.reconnect_timer=setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
+			
 			this.close_callback()
 		}
 
