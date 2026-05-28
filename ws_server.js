@@ -209,7 +209,7 @@ class g_class{
 		if (event==='ca'){
 			let data=0
 			this.clients.forEach(c => {
-				if(c.child_added_ss[path]){
+				if(c.ca_ss[path]){
 					if(!data) data=JSON.stringify({...val,event,node:path})
 					c.send(data)
 				}
@@ -220,7 +220,7 @@ class g_class{
 		if (event==='cc'){
 			let data=0
 			this.clients.forEach(c => {
-				if(c.child_changed_ss[path]){
+				if(c.cc_ss[path]){
 					if(!data) data=JSON.stringify({...val,event,node:path})
 					c.send(data)
 				}
@@ -231,7 +231,7 @@ class g_class{
 		if (event==='cr'){
 			let data=0
 			this.clients.forEach(c => {
-				if(c.child_removed_ss[path]){
+				if(c.cr_ss[path]){
 					if(!data) data=JSON.stringify({k:val,event,node:path})
 					c.send(data)
 				}
@@ -242,7 +242,7 @@ class g_class{
 		if (event==='vc'){
 			let data=0
 			this.clients.forEach(c => {
-				if(c.value_changed_ss[path]){
+				if(c.vc_ss[path]){
 					if(!data) data=JSON.stringify({val,event,node:path})
 					c.send(data)
 				}
@@ -454,6 +454,24 @@ class g_class{
 		}
 	}
 
+	clear_fb(timeout=1296000_000){
+		
+		const fb=this.db.fb
+		if (!fb) return
+		
+		const tm=Date.now()
+		for (const uid in fb){
+			
+			const fb_arr=fb[uid]
+			
+			for (let i=fb_arr.length-1;i>=0;i--){
+				if (tm-fb_arr[i].tm>timeout) {
+					fb_arr.splice(i, 1);
+				}
+			}
+		}
+	}
+
 	top_by_key(path,tar_key='rating',limit=20){
 
 		const data = this.get_nested_value(path)
@@ -487,7 +505,7 @@ class g_class{
 		
 	}
 
-	remove(path_url){
+	remove(path_url,notify){
 
 		const path=path_url.split('/')
 		const path_len=path.length
@@ -495,7 +513,7 @@ class g_class{
 		const path_str0=path[0]
 		const node0=this.db[path[0]]		
 		if(!node0) return
-		if (path_len===1){			
+		if (path_len===1){
 			delete this.db[path[0]]
 			return;
 		}
@@ -505,6 +523,7 @@ class g_class{
 		if(!node1) return;
 		if (path_len===2){
 			delete node0[path[1]]
+			if(!notify) return
 			this.process(path_str0,'vc',node0)
 			this.process(path_str0,'cr',path[1])
 			return;
@@ -515,6 +534,7 @@ class g_class{
 		if(!node2) return;
 		if (path_len===3){
 			delete node1[path[2]]
+			if(!notify) return
 			this.process(path_str0,'vc',node0)
 			this.process(path_str1,'vc',node1)
 			this.process(path_str1,'cr',path[2])
@@ -526,6 +546,7 @@ class g_class{
 		if(!node3) return;
 		if (path_len===4){
 			delete node2[path[3]];
+			if(!notify) return
 			this.process(path_str0,'vc',node0)
 			this.process(path_str1,'vc',node1)
 			this.process(path_str2,'vc',node2)
@@ -605,10 +626,11 @@ class g_class{
 
 		client.last_alive=tm1;
 
-		client.child_added_ss={};
-		client.child_removed_ss={};
-		client.child_changed_ss={};
-		client.value_changed_ss={};
+		client.ca_ss={};
+		client.cr_ss={};
+		client.cc_ss={};
+		client.vc_ss={};
+		client.on_close={};
 
 		//сообщения от клиентов
 		client.on('message', data => {
@@ -628,18 +650,21 @@ class g_class{
 			if (msg.cmd==='new_logger'){
 				loggers[msg.game]=new batch_logger_class(msg.game);
 				console.log('new logger created',msg.game);
+				return
 			}
 
 			if (msg.cmd==='log'){
 				if (!loggers[msg.logger])
 					loggers[msg.logger]=new batch_logger_class(msg.logger);
 				loggers[msg.logger].log(msg.data);
+				return
 			}
 
 			if (msg.cmd==='log_inst'){
 				if (!loggers[msg.logger])
 					loggers[msg.logger]=new batch_logger_class(msg.logger);
 				loggers[msg.logger].log_inst(msg.data);
+				return
 			}
 
 			if (msg.cmd==='set'){
@@ -649,104 +674,133 @@ class g_class{
 				//отправляем подтверждение
 				if(msg.req_id)
 					client.send(JSON.stringify({event:'set',req_id:msg.req_id}))
+				return
+			}
+			
+			if (msg.cmd==='inc'){
+				this.inc(msg.path)
+				return
 			}
 
 			if (msg.cmd==='set_no_event'){
 				//console.log('set_no_event command received...');
 				this.set_no_event(msg.path,msg.val);
+				return
 			}
 
 			if (msg.cmd==='top3'){
 				loggers.sys.log('top3_command: ',msg.path,msg.val);
 				this.top3(msg.path,msg.val);
+				return
 			}
 
 			if (msg.cmd==='clear_by_tm'){
 				this.clear_by_tm(msg.path,msg.timeout,msg.notify);
+				return
 			}
 
 			if (msg.cmd==='top_by_key'){
 				const data=this.top_by_key(msg.path,msg.key,msg.limit);
 				client.send(JSON.stringify({event:'top_by_key',data,req_id:msg.req_id}));
+				return
+			}
+
+			if (msg.cmd==='clear_fb'){
+				this.clear_fb(msg.timeout)
+				return
 			}
 
 			if (msg.cmd==='push'){
 				if (msg.path==='chat')
 					loggers.chat.log(this.game,msg.val)
 				this.push(msg.path,msg.val)
+				return
 			}
 
 			if (msg.cmd==='remove'){
 				//batch.log('remove command received...');
 				this.remove(msg.path);
+				return
 			}
 			
 			if (msg.cmd==='remove_arr_elem'){
 				//batch.log('remove command received...');
 				this.remove_arr_elem(msg.path);
+				return
 			}
 
 			if (msg.cmd==='get'){
 				client.send(JSON.stringify({event:'get',data:this.get_nested_value(msg.path,msg.limit_last),req_id:msg.req_id}));
+				return
 			}
 
 			if (msg.cmd==='get_tms'){
 				const data=Date.now();
 				client.send(JSON.stringify({event:'get_tms',data,req_id:msg.req_id}));
+				return
+			}
+
+			if (msg.cmd==='on_close'){
+				
+				client.on_close[msg.path]=msg.action||1;
+				return
 			}
 
 			if (msg.cmd==='vc'){
-				client.value_changed_ss[msg.path]=1;
-				//batch.log(msg.path,'value changed subscribed!');
+				client.vc_ss[msg.path]=1;
+				return
 			}
 
 			if (msg.cmd==='ca'){
-				client.child_added_ss[msg.path]=1;
-				//batch.log(msg.path,'child added subscribed!');
+				client.ca_ss[msg.path]=1;
+				return
 			}
 
 			if (msg.cmd==='cc'){
-				client.child_changed_ss[msg.path]=1;
-				//batch.log(msg.path,'child changed subscribed!');
+				client.cc_ss[msg.path]=1;
+				return
 			}
 
 			if (msg.cmd==='cr'){
-				client.child_removed_ss[msg.path]=1;
-				//batch.log(msg.path,'child removed subscribed!');
+				client.cr_ss[msg.path]=1;
+				return
 			}
 
 			if (msg.cmd==='vc_off'){
-				client.value_changed_ss[msg.path]=0;
-				//batch.log(msg.path,'value change unsubscribed!');
+				client.vc_ss[msg.path]=0;
+				return
 			}
 
 			if (msg.cmd==='ca_off'){
-				client.child_added_ss[msg.path]=0;
-				//batch.log(msg.path,'child added unsubscribed!');
+				client.ca_ss[msg.path]=0;
+				return
 			}
 
 			if (msg.cmd==='cc_off'){
-				client.child_changed_ss[msg.path]=0;
-				//batch.log(msg.path,'child changed unsubscribed!');
+				client.cc_ss[msg.path]=0;
+				return
 			}
 
 			if (msg.cmd==='cr_off'){
-				client.child_removed_ss[msg.path]=0;
-				//batch.log(msg.path,'child removed unsubscribed!');
+				client.cr_ss[msg.path]=0;
+				return
 			}
 
 		});
-
+		
 		// Handle client disconnection
 		client.on('close', () => {
 			loggers.sys.log('close_con: ',this.game,client.uid);
-
+			
+			for (let path in client.on_close) this.remove(path,1)
+			client.on_close=null
+		
 			// Clear all subscriptions
-			client.child_added_ss = null;
-			client.child_removed_ss = null;
-			client.child_changed_ss = null;
-			client.value_changed_ss = null;
-
+			client.ca_ss = null
+			client.cr_ss = null
+			client.cc_ss = null
+			client.vc_ss = null
+		
 			// Remove all listeners
 			client.removeAllListeners('message');
 			client.removeAllListeners('error');

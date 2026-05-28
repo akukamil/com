@@ -220,6 +220,7 @@ my_ws={
 			set: (val) => this.safe_send({cmd: 'set', path, val}),
 			set_no_event: (val) => this.safe_send({cmd: 'set_no_event', path, val}),
 			set_with_promise: (val) => this.make_req('set', {path, val}),
+			inc: (val) => this.safe_send({cmd:'inc', path}),
 			get: (limit_last = 20) => this.make_req('get', {path, limit_last}),
 			push: (val) => this.safe_send({cmd: 'push', path, val}),
 			remove: () => this.safe_send({cmd: 'remove', path}),
