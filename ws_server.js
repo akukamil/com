@@ -680,8 +680,8 @@ class g_class{
 			if (msg.cmd==='inc'){
 				this.inc(msg.path)
 				return
-			}
-
+			}			
+			
 			if (msg.cmd==='set_no_event'){
 				//console.log('set_no_event command received...');
 				this.set_no_event(msg.path,msg.val);
