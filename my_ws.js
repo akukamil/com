@@ -42,7 +42,9 @@ my_ws={
 	req_id:1,
 	close_callback:()=>{},
 	connect_callback:()=>{},
-
+	last_close_code:-1,
+	last_close_reason:'-',
+	
 	s_url:'',
 
 	init(local){		
@@ -143,6 +145,9 @@ my_ws={
 		this.socket.onclose = event => {
 
 			clearTimeout(this.keep_alive_timer)
+			
+			this.last_close_code=event.code
+			this.last_close_reason=event.reason
 			
 			//не восстанавливаем соединения если закрыто по команде
 			if (['not_alive','no_uid','kill','sleep','dub'].includes(event.reason)) return;
