@@ -29,7 +29,8 @@ my_ws={
 	child_changed:{},
 	value_changed:{},
 	child_removed:{},
-
+	act_on_close:{},
+	
 	get_resolvers:{},
 	get_req_id:0,
 	reconnect_time:0,
@@ -115,6 +116,7 @@ my_ws={
 			for (const path in this.child_changed) this.safe_send({cmd:'cc',path})
 			for (const path in this.child_removed) this.safe_send({cmd:'cr',path})
 			for (const path in this.value_changed) this.safe_send({cmd:'vc',path})
+			for (const path in this.act_on_close) this.safe_send({cmd:'on_close',path})
 
 			this.reset_keep_alive('onopen');
 			this.connect_callback(reason)
@@ -278,6 +280,12 @@ my_ws={
 
 	get_tms() {
 		return this.make_req('get_tms')
+	},
+
+	on_close(path,action='remove'){
+		
+		this.act_on_close[path]=action
+		this.safe_send({cmd:'on_close',path})
 	},
 
 	ss_child_added(path,callback){
