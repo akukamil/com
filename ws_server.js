@@ -469,6 +469,9 @@ class g_class{
 					fb_arr.splice(i, 1);
 				}
 			}
+			
+			if (!fb_arr.length)
+				delete fb[uid]
 		}
 	}
 
@@ -618,7 +621,7 @@ class g_class{
 		this.clients.forEach(c => {
 			if (c.uid === client.uid&&c.last_alive) {
 				loggers.sys.log('dub_found: ',this.game,c.uid,tm1-c.last_alive);
-				c.terminate();
+				c.close(4001,'dub');
 			}
 		});
 
@@ -789,7 +792,7 @@ class g_class{
 		});
 		
 		// Handle client disconnection
-		client.on('close', () => {
+		client.on('close', (code,reason) => {
 			loggers.sys.log('close_con: ',this.game,client.uid);
 			
 			for (let path in client.on_close) this.remove(path,1)
