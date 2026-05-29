@@ -145,7 +145,7 @@ my_ws={
 			clearTimeout(this.keep_alive_timer)
 			
 			//не восстанавливаем соединения если закрыто по команде
-			if (['not_alive','no_uid','kill','sleep'].includes(event.reason)) return;
+			if (['not_alive','no_uid','kill','sleep','dub'].includes(event.reason)) return;
 	
 			if (this.reconnect_time<60_000)
 				this.reconnect_time=this.reconnect_time+hf.randIntInc(1000,4000)
