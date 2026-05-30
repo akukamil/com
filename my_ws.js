@@ -147,6 +147,7 @@ my_ws={
 
 		this.socket.onclose = event => {
 
+			console.warn('my_ws socket closed!',event)
 			clearTimeout(this.keep_alive_timer)
 			
 			this.last_close_code=event.code
@@ -175,7 +176,7 @@ my_ws={
 		this.socket.onerror = error => {
 			
 			this.last_error=error
-			console.warn('connection error',error)
+			console.warn('my_ws socket error',error)
 
 		}
 
