@@ -44,6 +44,9 @@ my_ws={
 	connect_callback:()=>{},
 	last_close_code:-1,
 	last_close_reason:'-',
+	last_error:-1,
+	close_stat:[],
+	open_tm:0,
 	
 	s_url:'',
 
@@ -101,7 +104,7 @@ my_ws={
 			this.socket.close()
 		}
 
-		//this.open_tm=0
+		this.open_tm=0
 		this.sleep=0
 		this.socket = new WebSocket(this.s_url)
 
@@ -111,7 +114,7 @@ my_ws={
 			this.connect_resolver?.()
 			this.connect_resolver=null
 			this.reconnect_time=0
-			//this.open_tm=Date.now()
+			this.open_tm=Date.now()
 
 			//обновляем подписки
 			for (const path in this.child_added) this.safe_send({cmd:'ca',path})
@@ -149,6 +152,12 @@ my_ws={
 			this.last_close_code=event.code
 			this.last_close_reason=event.reason
 			
+			//проверяем множество странных закрытий
+			/*const tm=Date.now()
+			this.close_stat.push(tm)
+			this.close_stat = this.close_stat.filter(t => tm - t < 60_000)
+			if (this.close_stat.length>10) this.reconnect_time=100_000*/
+			
 			//не восстанавливаем соединения если закрыто по команде
 			if (['not_alive','no_uid','kill','sleep','dub'].includes(event.reason)) return;
 	
@@ -165,6 +174,7 @@ my_ws={
 
 		this.socket.onerror = error => {
 			
+			this.last_error=error
 			console.warn('connection error',error)
 
 		}
