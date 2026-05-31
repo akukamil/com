@@ -64,7 +64,6 @@ my_ws={
 			return
 		}
 
-		if(this.socket.readyState===1) return
 		return new Promise(res=>{
 			this.connect_resolver=res
 			this.reconnect('init')
