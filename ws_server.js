@@ -609,7 +609,7 @@ class g_class{
 	}
 
 	remove_client(client){
-		for (let i = this.clients.length-1;i>=0;i--)
+		for (let i = this.clients.length-1;i>=0;i--){
 			if (this.clients[i]===client){
 				this.clients.splice(i, 1);
 				return;
@@ -649,7 +649,7 @@ class g_class{
 
 			const msg_str=data.toString()
 			
-			if (msg_str==1) return			
+			if (msg_str==='1') return			
 			
 			const msg=JSON.parse(msg_str, (k, v) => {
 				return v === 'TMS' ? tm : v
