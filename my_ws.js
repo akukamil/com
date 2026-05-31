@@ -38,7 +38,7 @@ my_ws={
 	connect_resolver:null,
 	sleep:0,
 	keep_alive_timer:0,
-	keep_alive_time:45000,
+	keep_alive_time:25000,
 	req_id:1,
 	close_callback:()=>{},
 	connect_callback:()=>{},
