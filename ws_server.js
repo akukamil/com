@@ -166,13 +166,17 @@ class g_class{
 			//удаляем мертвых клиентов
 			const tm=Date.now()
 			const games_stat={}
-			this.clients.forEach(c=>{
+			
+			for (let i = this.clients.length-1; i >= 0; i--){
+				
+				const c=this.clients[i]
 				if(c.last_alive&&tm-c.last_alive>300000){
 					loggers.sys.log('closing: ',this.game,c.uid,tm-c.last_alive)
 					c.close(1000,'not_alive')
-					this.remove_client(c)
+					this.clients.splice(i, 1);
 				}
-			})
+			}			
+
 			loggers.sys.log('con_stat: ',this.game,this.clients.length)
 
 		} catch (error) {
@@ -605,7 +609,7 @@ class g_class{
 	}
 
 	remove_client(client){
-		for (let i=0;i<this.clients.length;i++){
+		for (let i = this.clients.length-1;i>=0;i--)
 			if (this.clients[i]===client){
 				this.clients.splice(i, 1);
 				return;
@@ -644,6 +648,9 @@ class g_class{
 			client.last_alive=tm
 
 			const msg_str=data.toString()
+			
+			if (msg_str==1) return			
+			
 			const msg=JSON.parse(msg_str, (k, v) => {
 				return v === 'TMS' ? tm : v
 			});
@@ -692,7 +699,7 @@ class g_class{
 			}
 
 			if (msg.cmd==='top3'){
-				loggers.sys.log('top3_command: ',msg.path,msg.val);
+				//loggers.sys.log('top3_command: ',msg.path,msg.val);
 				this.top3(msg.path,msg.val);
 				return
 			}
@@ -793,7 +800,7 @@ class g_class{
 		
 		// Handle client disconnection
 		client.on('close', (code,reason) => {
-			loggers.sys.log('close_con: ',this.game,client.uid);
+			loggers.sys.log('close_con: ',this.game,client.uid,code||'-',reason||'-');
 			
 			for (let path in client.on_close) this.remove(path,1)
 			client.on_close=null
