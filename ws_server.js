@@ -800,7 +800,7 @@ class g_class{
 		
 		// Handle client disconnection
 		client.on('close', (code,reason) => {
-			loggers.sys.log('close_con: ',this.game,client.uid,code||'-',reason||'-');
+			loggers.sys.log('close_con: ',this.game,client.uid,code||'-',reason.toString()||'-');
 			
 			for (let path in client.on_close) this.remove(path,1)
 			client.on_close=null
