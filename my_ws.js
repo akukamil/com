@@ -90,7 +90,14 @@ my_ws={
 
 		clearTimeout(this.keep_alive_timer)
 		this.sleep=1
-		this.socket.close(1000, 'kill')
+		if (this.socket) {
+			this.socket.onopen = null
+			this.socket.onmessage = null
+			this.socket.onclose = null
+			this.socket.onerror = null
+			this.socket.close(1000, 'kill')
+		}
+		
 
 	},
 
