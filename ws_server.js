@@ -88,26 +88,26 @@ class batch_logger_class{
 		const message = new Date().toLocaleString('ru-RU')+': '+args.map(arg =>
 			typeof arg === 'object'?JSON.stringify(arg) : String(arg)
 		).join(' ');
-		
+
 		this.logs.push(message);
 		const tm_since_last_flush=Date.now()-this.last_flush_tm;
 
 		if ((this.logs.length >=50&&tm_since_last_flush>5000)||tm_since_last_flush>60000)
 			this.flush_logs();
 	}
-	
+
 	log_inst(...args){
 
 		//это для редких сообщений, сразу записываем
 		const message = new Date().toLocaleString('ru-RU')+': '+args.map(arg =>
 			typeof arg === 'object'?JSON.stringify(arg) : String(arg)
 		).join(' ')+'\n';
-		
+
 		this.cur_stream.write(message,err=>{
 			if (err)
 				console.error('cur_stream write error:', err);
-		})		
-	}	
+		})
+	}
 
 }
 
@@ -117,14 +117,6 @@ const loggers={};
 loggers.chat=new batch_logger_class('chat');
 loggers.sys=new batch_logger_class('sys');
 loggers.slots=new batch_logger_class('slots');
-
-function str_to_obj(str) {
-	try {
-		return JSON.parse(str);
-	} catch (e) {
-		return str;
-	}
-}
 
 const g={};
 
@@ -166,16 +158,16 @@ class g_class{
 			//удаляем мертвых клиентов
 			const tm=Date.now()
 			const games_stat={}
-			
+
 			for (let i = this.clients.length-1; i >= 0; i--){
-				
+
 				const c=this.clients[i]
 				if(c.last_alive&&tm-c.last_alive>300000){
 					loggers.sys.log('closing: ',this.game,c.uid,tm-c.last_alive)
 					c.close(1000,'not_alive')
 					this.clients.splice(i, 1);
 				}
-			}			
+			}
 
 			loggers.sys.log('con_stat: ',this.game,this.clients.length)
 
@@ -260,12 +252,11 @@ class g_class{
 
 		const path_arr=path.split('/')
 		const path_len=path_arr.length
-		
+
 		//---
 		let max_arr_size=30
 		if (path_arr[0]==='fb')
 			max_arr_size=10
-
 
 		//получаем или создаем последний нод пути
 		let cur_node=this.db
@@ -445,11 +436,11 @@ class g_class{
 		//удаляем по значению tm
 		const data_to_clean=this.get_nested_value(path)
 		if (data_to_clean === null || typeof data_to_clean !== 'object') return
-		
+
 		const tm=Date.now()
-		
+
 		for (const key of Object.keys(data_to_clean)){
-			
+
 			const data=data_to_clean[key]
 			if (data&&data.tm){
 				if (tm-data.tm>timeout)
@@ -459,21 +450,21 @@ class g_class{
 	}
 
 	clear_fb(timeout=1296000_000){
-		
+
 		const fb=this.db.fb
 		if (!fb) return
-		
+
 		const tm=Date.now()
 		for (const uid in fb){
-			
+
 			const fb_arr=fb[uid]
-			
+
 			for (let i=fb_arr.length-1;i>=0;i--){
 				if (tm-fb_arr[i].tm>timeout) {
 					fb_arr.splice(i, 1);
 				}
 			}
-			
+
 			if (!fb_arr.length)
 				delete fb[uid]
 		}
@@ -484,7 +475,7 @@ class g_class{
 		const data = this.get_nested_value(path)
 
 		if (!data || typeof data !== 'object') return null
-		
+
 		const top = [];
 
 		for (const key in data) {
@@ -509,7 +500,7 @@ class g_class{
 		}
 
 		return top.reverse()
-		
+
 	}
 
 	remove(path_url,notify){
@@ -518,7 +509,7 @@ class g_class{
 		const path_len=path.length
 
 		const path_str0=path[0]
-		const node0=this.db[path[0]]		
+		const node0=this.db[path[0]]
 		if(!node0) return
 		if (path_len===1){
 			delete this.db[path[0]]
@@ -526,7 +517,7 @@ class g_class{
 		}
 
 		const path_str1=path_str0+'/'+path[1]
-		const node1=node0[path[1]]	
+		const node1=node0[path[1]]
 		if(!node1) return;
 		if (path_len===2){
 			delete node0[path[1]]
@@ -537,7 +528,7 @@ class g_class{
 		}
 
 		const path_str2=path_str1+'/'+path[2]
-		const node2=node1[path[2]];		
+		const node2=node1[path[2]];
 		if(!node2) return;
 		if (path_len===3){
 			delete node1[path[2]]
@@ -549,7 +540,7 @@ class g_class{
 		}
 
 		const path_str3=path_str2+'/'+path[3]
-		const node3=node2[path[3]];		
+		const node3=node2[path[3]];
 		if(!node3) return;
 		if (path_len===4){
 			delete node2[path[3]];
@@ -562,25 +553,25 @@ class g_class{
 		}
 
 	}
-	
+
 	remove_arr_elem(path_url){
 
 		//удаление элементов, пока не анонсируем
 		const path=path_url.split('/')
 		const path_len=path.length
 		let ref_node=this.db
-		
+
 		//получаем нод перед индексом который нужно удалить
 		for (let i=0;i<path_len-1;i++){
 			ref_node=ref_node[path[i]]
 			if (!ref_node) return 0
 		}
-		
+
 		if(!Array.isArray(ref_node)) return 0
-		
+
 		const index_to_remove=+path[path_len-1]
 		if (!Number.isFinite(+index_to_remove)) return 0
-			
+
 		ref_node.splice(index_to_remove,1)
 	}
 
@@ -593,14 +584,14 @@ class g_class{
 			const key=path_arr[i];
 			if (!cur_node[key]||typeof(cur_node[key])!=='object'){
 				if (i===path_len-1){
-					cur_node[key]=str_to_obj(val);
+					cur_node[key]=val;
 					break;
 				}
 				else
 					cur_node[key]={};
 			}else{
 				if (i===path_len-1){
-					cur_node[key]=str_to_obj(val);
+					cur_node[key]=val;
 					break;
 				}
 			}
@@ -624,14 +615,15 @@ class g_class{
 		//ищем дубликаты
 		this.clients.forEach(c => {
 			if (c.uid === client.uid&&c.last_alive) {
-				loggers.sys.log('dub_found: ',this.game,c.uid,tm1-c.last_alive);
-				c.close(4001,'dub');
+				loggers.sys.log('dub_found: ',this.game,c.uid,tm1-c.last_alive)
+				c.close(4001,'dub')
 			}
-		});
+		})
 
 		this.clients.push(client);
 
-		client.last_alive=tm1;
+		client.last_alive=tm1
+		client.open_tm=tm1
 
 		client.ca_ss={};
 		client.cr_ss={};
@@ -648,9 +640,9 @@ class g_class{
 			client.last_alive=tm
 
 			const msg_str=data.toString()
-			
-			if (msg_str==='1') return			
-			
+
+			if (msg_str==='1') return
+
 			const msg=JSON.parse(msg_str, (k, v) => {
 				return v === 'TMS' ? tm : v
 			});
@@ -680,18 +672,18 @@ class g_class{
 			if (msg.cmd==='set'){
 				//batch.log('set command received...');
 				this.set(msg.path,msg.val)
-				
+
 				//отправляем подтверждение
 				if(msg.req_id)
 					client.send(JSON.stringify({event:'set',req_id:msg.req_id}))
 				return
 			}
-			
+
 			if (msg.cmd==='inc'){
 				this.inc(msg.path)
 				return
-			}			
-			
+			}
+
 			if (msg.cmd==='set_no_event'){
 				//console.log('set_no_event command received...');
 				this.set_no_event(msg.path,msg.val);
@@ -732,7 +724,7 @@ class g_class{
 				this.remove(msg.path);
 				return
 			}
-			
+
 			if (msg.cmd==='remove_arr_elem'){
 				//batch.log('remove command received...');
 				this.remove_arr_elem(msg.path);
@@ -751,7 +743,7 @@ class g_class{
 			}
 
 			if (msg.cmd==='on_close'){
-				
+
 				client.on_close[msg.path]=msg.action||1;
 				return
 			}
@@ -797,20 +789,20 @@ class g_class{
 			}
 
 		});
-		
+
 		// Handle client disconnection
 		client.on('close', (code,reason) => {
 			loggers.sys.log('close_con: ',this.game,client.uid,code||'-',reason.toString()||'-');
-			
+
 			for (let path in client.on_close) this.remove(path,1)
 			client.on_close=null
-		
+
 			// Clear all subscriptions
 			client.ca_ss = null
 			client.cr_ss = null
 			client.cc_ss = null
 			client.vc_ss = null
-		
+
 			// Remove all listeners
 			client.removeAllListeners('message');
 			client.removeAllListeners('error');
@@ -843,10 +835,10 @@ fs.readdir('./dbs', (err, files) => {
 			new g_class(game);
 	});
 });
- 
+
 // создаем HTTP сервер
 const server = https.createServer(serverConfig);
- 
+
 //создаем WSS сервер
 wss = new WebSocket.Server({server});
 
@@ -862,28 +854,39 @@ setInterval(async () => {
 	}
 }, 360000);
 
-//новые сообщения
+
 wss.on('connection', (ws,req) => {
 	loggers.sys.log('new_conn: ',req.url,req.socket.remoteAddress);
 
-	const user_data=req.url.split('/')
-	let game='';
-	ws.uid='no';
-	if (user_data.length===3){
-		game=user_data[1];
-		const uid=user_data[2];
-		ws.uid=uid;
+	const url=req.url
+
+	let url_params={}
+	if (url.includes('uid=')&&url.includes('game=')){
+		const url2 = url.split('?')[1]
+		const url_data = new URLSearchParams(url2)
+		url_params = Object.fromEntries(url_data)
+	}else{
+
+		const url_data=url.split('/').filter(Boolean)
+		if (url_data.length<2){
+			ws.close(4000, 'no_uid')
+			return;
+		}
+
+		url_params.game=url_data[0]
+		url_params.uid=url_data[1]
 	}
 
-	if(user_data.length<3){
+	if(!url_params.game||!url_params.uid){
 		ws.close(4000, 'no_uid');
 		return;
 	}
 
+	ws.uid=url_params.uid
+
 	//отправляем в соответствующую базу для дальнейшей обработки
-	if (!g[game])
-		new g_class(game);
-	
+	const game=url_params.game
+	if (!g[game]) new g_class(game)
 	g[game].try_add_client(ws)
 
 });
