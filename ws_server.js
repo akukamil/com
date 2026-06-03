@@ -616,7 +616,7 @@ class g_class{
 		this.clients.forEach(c => {
 			if (c.uid === client.uid&&c.last_alive) {
 				loggers.sys.log('dub_found: ',this.game,c.uid,tm1-c.last_alive)
-				c.close(4001,'dub')
+				c.close(4001,'kill')
 			}
 		})
 
@@ -853,7 +853,6 @@ setInterval(async () => {
 		console.error("Failed to save a database:", error);
 	}
 }, 360000);
-
 
 wss.on('connection', (ws,req) => {
 	loggers.sys.log('new_conn: ',req.url,req.socket.remoteAddress);
