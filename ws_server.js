@@ -434,6 +434,7 @@ class g_class{
 	clear_by_tm(path,timeout=100_000_000,notify=0){
 
 		//удаляем по значению tm
+		let tot_deleted=0
 		const data_to_clean=this.get_nested_value(path)
 		if (data_to_clean === null || typeof data_to_clean !== 'object') return
 
@@ -442,11 +443,15 @@ class g_class{
 		for (const key of Object.keys(data_to_clean)){
 
 			const data=data_to_clean[key]
-			if (data&&data.tm){
-				if (tm-data.tm>timeout)
+			if (data){
+				if (!data.tm||(tm-data.tm>timeout)){
 					this.remove(path+'/'+key,notify)
+					tot_deleted++
+				}
 			}
 		}
+		
+		return tot_deleted
 	}
 
 	clear_fb(timeout=1296000_000){
@@ -697,7 +702,8 @@ class g_class{
 			}
 
 			if (msg.cmd==='clear_by_tm'){
-				this.clear_by_tm(msg.path,msg.timeout,msg.notify);
+				const tot_deleted=this.clear_by_tm(msg.path,msg.timeout,msg.notify)
+				client.send(JSON.stringify({event:'clear_by_tm',tot_deleted}))
 				return
 			}
 

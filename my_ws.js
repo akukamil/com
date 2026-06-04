@@ -148,7 +148,8 @@ my_ws={
 			if (msg.event==='top_by_key') this.get_resolvers[msg.req_id]?.(msg.data)
 			if (msg.event==='set') this.get_resolvers[msg.req_id]?.(1)
 			if (msg.event==='push') this.get_resolvers[msg.req_id]?.(1)
-
+			if (msg.event==='clear_by_tm') console.log('tot_deleted: ',msg.tot_deleted)
+				
 		};
 
 		this.socket.onclose = event => {
@@ -176,7 +177,7 @@ my_ws={
 			clearTimeout(this.reconnect_timer)
 			this.reconnect_timer=setTimeout(()=>{this.reconnect('re')},this.reconnect_time)
 			
-			this.close_callback()
+			this.close_callback(event)
 		}
 
 		this.socket.onerror = error => {
