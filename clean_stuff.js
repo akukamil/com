@@ -363,7 +363,7 @@ tools={
 			//не видно уже 1 час но есть в комнате
 			const not_seen = tm - player_last_seen;
 			if (player_last_seen>999&&not_seen > 360000) {
-				fbs.ref(room_name+ '/' + uid).remove();
+				await fbs.ref(room_name+ '/' + uid).remove();
 				total_removed++;
 			}
 		}	
