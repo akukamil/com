@@ -264,60 +264,18 @@ tools={
 			
 			if (player&&(!player.tm)) {				
 				await fbs.ref('players/'+uid).remove()
-				player.tm=111
 				console.log('INVALID: '+ uid + ' rating: '+ player.rating)
 				total_removed++
 			}				
-		}
-				
+		}				
 				
 		addLog("Удалено старых игроков: "+total_removed)
 		
 		if (game_name==='durak'||game_name==='domino')
 			await this.check_crystals()
-		
-	},
-	
-	async remove_old_poker(days_without_allowed=30){
-		
-		//если нету игроков		
-		if (!fbs_data[game_name].players)
-			fbs_data[game_name].players = await fbs_once('players')	
-		const players=fbs_data[game_name].players
-		
-		if (!players){
-			addLog('Данные об игроках пустые...')
-			return
-		} 
 
-		let total_removed=0
-		const tm=Date.now()
-			
-		for (const uid of Object.keys(players)) {	
-		
-			const player=players[uid]
-			
-			//проверяем на валидность рейтинга
-			if (player&&player.tm) {				
-				const days_without_visit=(tm-player.tm)/86400000
-				if (days_without_visit>days_without_allowed) {
-					await fbs.ref('players/'+uid).remove()
-					console.log('Удален '+ uid + ' rating: '+ player?.PUB?.rating)
-					total_removed++
-				}	
-			}	
-			
-			if (player&&(!player.tm)) {				
-				await fbs.ref('players/'+uid).remove()
-				console.log('INVALID: '+ uid + ' rating: '+ player?.PUB?.rating)
-				total_removed++
-			}				
-		}
-				
-		addLog("Удалено старых игроков: "+total_removed)
-		
 	},
-	
+		
 	async show_last_players(num=100){
 		
 		if (!fbs_data[game_name].players)		
@@ -411,18 +369,24 @@ tools={
 		for (data of game_data){
 			addLog(`${data.game}`);
 			
-			await fbs_connect(data.game,1)
-			await new Promise(resolve => setTimeout(resolve, 1500))
+			await fbs_connect(data.game,0)
+			await new Promise(r => setTimeout(r, 1500))
 			
-			if (data.game==='poker')
-				await this.remove_old_poker()
-			else
-				await this.remove_old()			
+			await this.remove_old()			
 			
 			const rooms=data.rooms
 			for (room of rooms)
-				await this.clean_room(room)			
+				await this.clean_room(room)	
+
+			if (['balda','domino','durak','corners','pool'].includes(data.game)){
+				my_ws.safe_send({cmd:'clear_fb',timeout:1_296_000_000})
+				await new Promise(r => setTimeout(r, 1000))
+			}
 			
+			if (['pool'].includes(data.game)){
+				my_ws.safe_send({cmd:'clear_by_tm',path:'players',timeout:2_592_000_000})
+				await new Promise(r => setTimeout(r, 1000))
+			}
 		}
 	
 		addLog('завершено!');
