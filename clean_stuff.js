@@ -332,6 +332,12 @@ tools={
 	
 	async block_player(uid){
 		
+		const name=await fbs_once(`players/${uid}/name`);
+		if (name===null){
+			console.log('Не нашли такого игрока!');
+			return
+		}
+		
 		//записываем в список блокировок
 		fbs.ref('blocked/'+uid).set(Date.now())
 		
@@ -341,8 +347,7 @@ tools={
 		//увеличиваем количество блокировок
 		fbs.ref('players/'+uid+'/block_num').transaction(val=> {return (val || 0) + 1})
 		
-		//отправляем сообщение
-		const name=await fbs_once(`players/${uid}/name`);
+		//отправляем сообщение		
 		const msg=`Игрок ${name} занесен в черный список.`;
 		console.log(msg);
 		my_ws.safe_send({cmd:'push',path:'chat',val:{uid:'admin',name:'Админ',msg,tm:'TMS'}})
