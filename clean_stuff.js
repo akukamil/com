@@ -292,6 +292,22 @@ tools={
 		
 	},
 	
+	async showLeaders({num=20,sortBy='rating'} = {}){
+		
+		if (!fbs_data[game_name].players)		
+			fbs_data[game_name].players=await fbs_once('players')		
+		
+		const players_array=Object.entries(fbs_data[game_name].players)
+		
+		players_array2=players_array.map(([uid, data]) => ({
+			uid,name:data.name,rating:data.rating,tm:data.tm,energy:data.energy,crystals:data.crystals
+		}));				
+		
+		players_array2.sort((a,b)=>{return b[sortBy]-a[sortBy]})
+		console.table(players_array2.slice(0, num))
+		
+	},
+	
 	async clean_room(room_name){
 		
 		const data = await fbs_once(room_name);
