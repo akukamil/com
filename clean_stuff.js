@@ -233,6 +233,44 @@ tools={
 		
 	},
 		
+	async check_energy(){
+		
+		//если нету игроков
+		if (!fbs_data[game_name].players)
+			fbs_data[game_name].players = await fbs_once('players')	
+		const players=fbs_data[game_name].players
+		
+		if (!players){
+			addLog('Данные об игроках пустые...')
+			return
+		} 
+
+		let total_removed=0
+		const tm=Date.now()
+			
+		for (const uid of Object.keys(players)) {	
+		
+			const player=players[uid]
+		
+			//проверяем на валидность рейтинга
+			if (player&&player.rating>1800) {
+				
+				const energy=player.energy||0
+				const d=tm-player.e_prv_tm||0
+				const days_passed=Math.floor(d/(1000*60*60))
+				const cur_energy=energy-days_passed
+				
+				if (cur_energy<-10) {
+					await fbs.ref('players/'+uid+'/rating').set(1800)
+					await fbs.ref('players/'+uid+'/energy').set(0)
+					console.log('Закончилась энергия',player.name,player.rating)
+				}	
+			}	
+
+		}
+		
+	},
+			
 	async remove_old(days_without_allowed=30){
 		
 		//если нету игроков
@@ -273,7 +311,9 @@ tools={
 		
 		if (game_name==='durak'||game_name==='domino')
 			await this.check_crystals()
-
+		
+		if (game_name==='corners')
+			await this.check_energy()
 	},
 		
 	async show_last_players(num=100){
@@ -292,18 +332,22 @@ tools={
 		
 	},
 	
-	async showLeaders({num=20,sortBy='rating'} = {}){
-		
-		if (!fbs_data[game_name].players)		
-			fbs_data[game_name].players=await fbs_once('players')		
-		
-		const players_array=Object.entries(fbs_data[game_name].players)
-		
-		players_array2=players_array.map(([uid, data]) => ({
-			uid,name:data.name,rating:data.rating,tm:data.tm,energy:data.energy,crystals:data.crystals
-		}));				
-		
-		players_array2.sort((a,b)=>{return b[sortBy]-a[sortBy]})
+	async showLeaders({num = 20,sortBy = 'rating',fields = ['uid', 'name', 'rating', 'tm', 'energy', 'crystals']} = {}) {
+
+		if (!fbs_data[game_name].players)
+			fbs_data[game_name].players = await fbs_once('players');
+
+		const players_array = Object.entries(fbs_data[game_name].players);
+
+		const players_array2 = players_array.map(([uid, data]) => {
+			const entry = {};
+			for (const f of fields) {
+				entry[f] = f === 'uid' ? uid : data[f];
+			}
+			return entry;
+		});
+
+		players_array2.sort((a, b) => b[sortBy] - a[sortBy]);
 		console.table(players_array2.slice(0, num))
 		
 	},
