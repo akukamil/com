@@ -256,7 +256,7 @@ tools={
 			if (player&&player.rating>1800) {
 				
 				const energy=player.energy||0
-				const d=tm-player.e_prv_tm||0
+				const d=tm-(player.e_prv_tm||0)
 				const days_passed=Math.floor(d/(1000*60*60))
 				const cur_energy=energy-days_passed
 				
