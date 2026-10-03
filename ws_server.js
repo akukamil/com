@@ -674,7 +674,7 @@ class g_class{
 				return
 			}
 			
-			if (msg.cmd==='logInst'){
+			if (msg.cmd==='logToFile'){
 				const fileName=msg.file||'logFile'
 				fs.appendFile(fileName, `${msg.data}\n`, 'utf8', (err) => {
 					if (err) {
