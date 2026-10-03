@@ -1,0 +1,22 @@
+# .github/workflows/deploy.yml
+name: Deploy Files to VM
+on:
+  push:
+    branches: [ main ] # Or your desired branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to server via SCP
+        uses: appleboy/scp-action@v1
+        with:
+          host: 213.171.26.138
+          username: user1
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: "ws_server.js" # Change to your source files
+          target: "/home/user1/" # Change to your target directory
