@@ -673,6 +673,16 @@ class g_class{
 				loggers[msg.logger].log_inst(msg.data);
 				return
 			}
+			
+			if (msg.cmd==='logInst'){
+				const fileName=msg.file||'logFile'
+				fs.appendFile(fileName, `${msg.data}\n`, 'utf8', (err) => {
+					if (err) {
+					  console.error('Could not write to log file:', err);
+					}
+				});
+				return
+			}
 
 			if (msg.cmd==='set'){
 				//batch.log('set command received...');
