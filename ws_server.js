@@ -675,10 +675,13 @@ class g_class{
 			}
 			
 			if (msg.cmd==='logToFile'){
-				const fileName=msg.file||'logFile'
-				fs.appendFile(fileName, `${msg.data}\n`, 'utf8', (err) => {
+				const fileName = msg.file || 'logFile';
+				const timestamp = new Date().toLocaleString('ru-RU');
+				const message =	typeof msg.data === 'object'? JSON.stringify(msg.data) : String(msg.data);
+
+				fs.appendFile(fileName, `${timestamp}: ${message}\n`, 'utf8', (err) => {
 					if (err) {
-					  console.error('Could not write to log file:', err);
+						console.error('Could not write to log file:', err);
 					}
 				});
 				return
