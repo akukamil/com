@@ -184,7 +184,8 @@ my_ws={
 			
 			this.last_error=error
 			console.warn('my_ws socket error',error)
-
+			this.connect_resolver?.()
+			this.connect_resolver=null
 		}
 
 	},
