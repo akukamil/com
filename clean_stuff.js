@@ -261,7 +261,7 @@ tools={
 				const cur_energy=energy-days_passed
 				
 				if (cur_energy<-10) {
-					await fbs.ref('players/'+uid+'/rating').set(1800)
+					//await fbs.ref('players/'+uid+'/rating').set(1800)
 					await fbs.ref('players/'+uid+'/energy').set(0)
 					console.log('Закончилась энергия',player.name,player.rating)
 				}	
