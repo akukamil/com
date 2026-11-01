@@ -60,10 +60,25 @@ my_ws={
 			this.s_url=`wss://timewebmtgames.ru:443/${game_name}/`+my_data.uid
 		
 		if(!game_name){
-			alert('No game_name provided!')
+			alert('game_name not defined!')
 			return
 		}
 
+		return new Promise(res=>{
+			this.connect_resolver=res
+			this.reconnect('init')
+		})
+	},
+	
+	init2(server,port){
+		
+		if(!game_name||!my_data.uid||!server||!port){
+			alert('game_name not defined!')
+			return
+		}
+		
+		this.s_url=server+':'+port+'/'+game_name+'/'+my_data.uid
+		
 		return new Promise(res=>{
 			this.connect_resolver=res
 			this.reconnect('init')
