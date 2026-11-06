@@ -111,8 +111,7 @@ fbs_data={
 		messagingSenderId: "226062460929",
 		appId: "1:226062460929:web:0afbd5f23cd9a76ee7f800"
 	}
-	
-	
+		
 }
 
 fbs_once=async (path)=>{
@@ -261,7 +260,7 @@ tools={
 				const cur_energy=energy-days_passed
 				
 				if (cur_energy<-10) {
-					//await fbs.ref('players/'+uid+'/rating').set(1800)
+					await fbs.ref('players/'+uid+'/rating').set(1800)
 					await fbs.ref('players/'+uid+'/energy').set(0)
 					console.log('Закончилась энергия',player.name,player.rating)
 				}	
@@ -443,7 +442,7 @@ tools={
 			for (room of rooms)
 				await this.clean_room(room)	
 
-			if (['balda','domino','durak','corners','pool'].includes(data.game)){
+			if (['balda','domino','durak','corners','pool','chess'].includes(data.game)){
 				my_ws.safe_send({cmd:'clear_fb',timeout:1_296_000_000})
 				await new Promise(r => setTimeout(r, 1000))
 			}
