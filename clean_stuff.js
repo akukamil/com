@@ -114,6 +114,20 @@ fbs_data={
 		
 }
 
+const game_data=[		
+	{game:'corners',rooms:['states1','states2','states3','states4','statesNIGHT']},
+	{game:'domino',rooms:['states1','states2','states3','states4','states5','states6','states7','states8','states9','states10']},
+	{game:'durak',rooms:['states1','states2','states3','states4','states5','statesNIGHT']},
+	{game:'chess',rooms:['states1','states2','states3','states4','statesNIGHT']},
+	{game:'poker',rooms:[]},
+	{game:'balda',rooms:['statesNIGHT']},
+	{game:'word_game',rooms:[]},
+	{game:'quoridor',rooms:['states']},
+	{game:'snow_words',rooms:['states','states2']},			
+	{game:'monopoly',rooms:['states2']},			
+	{game:'melody',rooms:[]}			
+]
+
 fbs_once=async (path)=>{
 	const info=await fbs.ref(path).get();
 	return info.val();	
@@ -314,6 +328,16 @@ tools={
 		if (game_name==='corners')
 			await this.check_energy()
 	},
+	
+	async showRoomsStat(){
+		
+		const rooms=game_data.find(r=>r.game===game_name).rooms
+		for (const room of rooms){			
+			const roomData=await fbs_once('states1')
+			const roomPlayers=Object.values(roomData)
+			console.log(room,roomPlayers.length)			
+		}		
+	},
 		
 	async show_last_players(num=100){
 		
@@ -415,20 +439,7 @@ tools={
 		
 	async clean_all(){
 				
-		const game_data=[		
-			{game:'corners',rooms:['states1','states2','states3','states4','statesNIGHT']},
-			{game:'domino',rooms:['states1','states2','states3','states4','states5','states6','states7','states8','states9','states10']},
-			{game:'durak',rooms:['states1','states2','states3','states4','states5','statesNIGHT']},
-			{game:'chess',rooms:['states1','states2','states3','states4','statesNIGHT']},
-			//{game:'pool',rooms:['states1']},
-			{game:'poker',rooms:[]},
-			{game:'balda',rooms:['statesNIGHT']},
-			{game:'word_game',rooms:[]},
-			{game:'quoridor',rooms:['states']},
-			{game:'snow_words',rooms:['states','states2']},			
-			{game:'monopoly',rooms:['states2']},			
-			{game:'melody',rooms:[]}			
-		]
+
 		
 		for (data of game_data){
 			addLog(`${data.game}`);
