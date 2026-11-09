@@ -333,7 +333,7 @@ tools={
 		
 		const rooms=game_data.find(r=>r.game===game_name).rooms
 		for (const room of rooms){			
-			const roomData=await fbs_once('states1')
+			const roomData=await fbs_once(room)
 			const roomPlayers=Object.values(roomData)
 			console.log(room,roomPlayers.length)			
 		}		
