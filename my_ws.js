@@ -311,8 +311,12 @@ my_ws={
 			child_removed_off:()=>{
 				delete this.child_removed[path]
 				this.safe_send({cmd:'cr_off',path})
-			}
+			},
 			
+			remove_on_close:()=>{
+				//delete path as default
+				this.safe_send({cmd:'on_close',path})
+			}
 			
 		};
 	},
